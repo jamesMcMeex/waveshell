@@ -331,7 +331,11 @@ func renderBrowsePicker(m Model, base string) string {
 
 func renderHelpOverlay(m Model, base string) string {
 	th := ResolveTheme(m.Config)
-	helpBox := buildHelpBox(m, th)
+	maxHeight := m.UI.Height - 6
+	if maxHeight < 6 {
+		maxHeight = 6
+	}
+	helpBox := buildHelpBox(m, th, m.Help.ScrollOffset, maxHeight)
 	helpLines := strings.Split(helpBox, "\n")
 	baseLines := strings.Split(base, "\n")
 
@@ -367,7 +371,7 @@ func renderHelpOverlay(m Model, base string) string {
 	return strings.Join(baseLines, "\n")
 }
 
-func buildHelpBox(m Model, th Theme) string {
+func buildHelpBox(m Model, th Theme, scrollOffset int, maxHeight int) string {
 	var b strings.Builder
 	header := th.HelpTitle().Render("HELP")
 	items := []helpItem{
@@ -416,11 +420,30 @@ func buildHelpBox(m Model, th Theme) string {
 	boxLines := strings.Split(content, "\n")
 	boxWidth := longestLine(boxLines)
 
+	// Clamp visible lines to maxHeight (accounting for 2 border lines)
+	visibleHeight := maxHeight - 2
+	if visibleHeight < 4 {
+		visibleHeight = 4
+	}
+	totalLines := len(boxLines)
+	if totalLines > visibleHeight {
+		endIdx := scrollOffset + visibleHeight
+		if endIdx > totalLines {
+			endIdx = totalLines
+		}
+		boxLines = boxLines[scrollOffset:endIdx]
+		// Append scroll hint footer if content is clipped
+		if endIdx < totalLines || scrollOffset > 0 {
+			hint := th.MutedText().Render("[i/k] scroll  [h/esc] close")
+			boxLines = append(boxLines, "", hint)
+		}
+	}
+
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(th.Accent).
 		Width(boxWidth + 2).
-		Render(content)
+		Render(strings.Join(boxLines, "\n"))
 }
 
 type helpItem struct {

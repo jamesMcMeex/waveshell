@@ -1,12 +1,12 @@
 package update
 
 import (
-	"fmt"
 	"log/slog"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jamesMcMeex/waveshell/internal/config"
 	"github.com/jamesMcMeex/waveshell/internal/db"
 	"github.com/jamesMcMeex/waveshell/internal/messages"
 	"github.com/jamesMcMeex/waveshell/internal/model"
@@ -178,7 +178,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case messages.DBErrorMsg:
 		slog.Error("db error", "op", msg.Op, "error", msg.Err, "fatal", msg.Fatal)
 		if msg.Fatal {
-			panic(fmt.Sprintf("fatal db error: %s: %v", msg.Op, msg.Err))
+			return m, tea.Quit
 		}
 		return m, nil
 
@@ -192,6 +192,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func handleKeyMsg(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// TODO: wire keybindings from cfg.Keybindings instead of hardcoding.
+	// Each branch below should call cfg.Keybindings.CursorDown.Matches(key), etc.
+	// See internal/config/config.go KeybindingsConfig.
 	key := msg.String()
 
 	// Help overlay routing
@@ -229,6 +232,11 @@ func handleKeyMsg(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Config != nil {
 			m.Config.UI.Theme = nextTheme(m.Config.UI.Theme)
 			slog.Info("theme switched", "theme", m.Config.UI.Theme)
+			if m.ConfigPath != "" {
+				if err := config.WriteConfig(m.ConfigPath, *m.Config); err != nil {
+					slog.Warn("failed to persist theme", "error", err)
+				}
+			}
 		}
 		return m, nil
 

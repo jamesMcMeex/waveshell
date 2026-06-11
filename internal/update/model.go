@@ -11,14 +11,15 @@ import (
 )
 
 type Model struct {
-	Library LibraryState
-	Player  PlayerState
-	Queue   QueueState
-	Search  SearchState
-	UI      UIState
-	Help    HelpState
-	Config  *config.Config
-	DB      *sql.DB
+	Library    LibraryState
+	Player     PlayerState
+	Queue      QueueState
+	Search     SearchState
+	UI         UIState
+	Help       HelpState
+	Config     *config.Config
+	ConfigPath string
+	DB         *sql.DB
 }
 
 type LibraryState struct {
@@ -88,5 +89,6 @@ type UIState struct {
 }
 
 type HelpState struct {
-	Active bool
+	Active       bool
+	ScrollOffset int
 }
