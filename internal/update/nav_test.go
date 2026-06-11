@@ -30,33 +30,33 @@ func TestFormatBadge_lossless(t *testing.T) {
 	bd := 24
 	track := model.Track{Format: "FLAC", SampleRate: 44100, BitDepth: &bd, Bitrate: 800}
 	badge := FormatBadge(track)
-	assert.Equal(t, "FLAC 44.1k 24bit", badge)
+	assert.Equal(t, "FLAC 44.1k 24bit 800kbps", badge)
 }
 
 func TestFormatBadge_lossy(t *testing.T) {
 	track := model.Track{Format: "MP3", SampleRate: 44100, Bitrate: 320}
 	badge := FormatBadge(track)
-	assert.Equal(t, "MP3 320", badge)
+	assert.Equal(t, "MP3 44.1k 320kbps", badge)
 }
 
 func TestFormatBadge_alac(t *testing.T) {
 	bd := 16
 	track := model.Track{Format: "ALAC", SampleRate: 44100, BitDepth: &bd, Bitrate: 600}
 	badge := FormatBadge(track)
-	assert.Equal(t, "ALAC 44.1k 16bit", badge)
+	assert.Equal(t, "ALAC 44.1k 16bit 600kbps", badge)
 }
 
 func TestFormatBadge_highRes(t *testing.T) {
 	bd := 24
 	track := model.Track{Format: "FLAC", SampleRate: 96000, BitDepth: &bd, Bitrate: 2000}
 	badge := FormatBadge(track)
-	assert.Equal(t, "FLAC 96.0k 24bit", badge)
+	assert.Equal(t, "FLAC 96.0k 24bit 2000kbps", badge)
 }
 
 func TestFormatBadge_ogg(t *testing.T) {
 	track := model.Track{Format: "OGG", SampleRate: 44100, Bitrate: 192}
 	badge := FormatBadge(track)
-	assert.Equal(t, "OGG 192", badge)
+	assert.Equal(t, "OGG 44.1k 192kbps", badge)
 }
 
 func TestPaneFocus_tabCyclesLeftToMiddleToRight(t *testing.T) {
@@ -648,4 +648,38 @@ func TestNextTheme_cyclesCorrectly(t *testing.T) {
 	assert.Equal(t, "slate", nextTheme("gameboy"))
 	assert.Equal(t, "slate", nextTheme(""))
 	assert.Equal(t, "slate", nextTheme("unknown"))
+}
+
+func TestFormatDuration(t *testing.T) {
+	assert.Equal(t, "0:05", formatDuration(5000))
+	assert.Equal(t, "1:00", formatDuration(60000))
+	assert.Equal(t, "1:30", formatDuration(90000))
+	assert.Equal(t, "0:00", formatDuration(0))
+}
+
+func TestTrackColumnValue(t *testing.T) {
+	bd := 24
+	track := model.Track{
+		TrackNumber: 1,
+		Title:       "Test Track",
+		DurationMs:  5000,
+		Format:      "FLAC",
+		SampleRate:  44100,
+		BitDepth:    &bd,
+		Bitrate:     800,
+		Artist:      "Test Artist",
+		Album:       "Test Album",
+		Year:        2024,
+		Genre:       "Electronic",
+	}
+	assert.Equal(t, "01", trackColumnValue(track, "track_number"))
+	assert.Equal(t, "Test Track", trackColumnValue(track, "title"))
+	assert.Equal(t, "0:05", trackColumnValue(track, "duration"))
+	assert.Equal(t, "2024", trackColumnValue(track, "year"))
+	assert.Equal(t, "Electronic", trackColumnValue(track, "genre"))
+}
+
+func TestTrackColumnValue_zeroTrackNumber(t *testing.T) {
+	track := model.Track{}
+	assert.Equal(t, "--", trackColumnValue(track, "track_number"))
 }

@@ -337,12 +337,19 @@ func normalizeBrowseMode(mode string) string {
 	return "artist"
 }
 
-func Load() (Config, error) {
+func DefaultPath() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return Config{}, fmt.Errorf("cannot determine user config dir: %w", err)
+		return "", fmt.Errorf("cannot determine user config dir: %w", err)
 	}
-	path := filepath.Join(configDir, "waveshell", "config.toml")
+	return filepath.Join(configDir, "waveshell", "config.toml"), nil
+}
+
+func Load() (Config, error) {
+	path, err := DefaultPath()
+	if err != nil {
+		return Config{}, err
+	}
 	return LoadFrom(path)
 }
 

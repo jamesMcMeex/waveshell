@@ -10,9 +10,9 @@ import (
 func FormatBadge(t model.Track) string {
 	rate := float64(t.SampleRate) / 1000.0
 	if t.BitDepth != nil {
-		return fmt.Sprintf("%s %.1fk %dbit", t.Format, rate, *t.BitDepth)
+		return fmt.Sprintf("%s %.1fk %dbit %dkbps", t.Format, rate, *t.BitDepth, t.Bitrate)
 	}
-	return fmt.Sprintf("%s %.0f", t.Format, float64(t.Bitrate))
+	return fmt.Sprintf("%s %.1fk %dkbps", t.Format, rate, t.Bitrate)
 }
 
 func leftPaneLabel(m Model) string {

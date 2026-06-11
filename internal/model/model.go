@@ -200,13 +200,15 @@ type RawTrackTags struct {
 	ArtworkData   []byte
 }
 
+var supportedExtensions = []string{".flac", ".alac", ".m4a", ".aiff", ".aif", ".mp3", ".wav", ".ogg"}
+
 func SupportedExtensions() []string {
-	return []string{".flac", ".alac", ".m4a", ".aiff", ".aif", ".mp3", ".wav", ".ogg"}
+	return supportedExtensions
 }
 
 func IsSupportedExt(path string) bool {
 	lower := strings.ToLower(path)
-	for _, ext := range SupportedExtensions() {
+	for _, ext := range supportedExtensions {
 		if len(lower) >= len(ext) && lower[len(lower)-len(ext):] == ext {
 			return true
 		}

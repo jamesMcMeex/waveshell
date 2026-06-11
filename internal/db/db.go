@@ -44,38 +44,3 @@ func Migrate(db *sql.DB) error {
 	}
 	return nil
 }
-
-func EnsureMigrated(db *sql.DB) error {
-	var version int
-	err := db.QueryRow(`SELECT version FROM schema_version ORDER BY version DESC LIMIT 1`).Scan(&version)
-	if err == sql.ErrNoRows {
-		return applyAllMigrations(db)
-	}
-	if err != nil {
-		return fmt.Errorf("read schema version: %w", err)
-	}
-	if version < len(migrations) {
-		return applyPendingMigrations(db, version)
-	}
-	return nil
-}
-
-func applyAllMigrations(db *sql.DB) error {
-	for _, m := range migrations {
-		if err := m.apply(db); err != nil {
-			return fmt.Errorf("migration v%d: %w", m.version, err)
-		}
-	}
-	return nil
-}
-
-func applyPendingMigrations(db *sql.DB, currentVersion int) error {
-	for _, m := range migrations {
-		if m.version > currentVersion {
-			if err := m.apply(db); err != nil {
-				return fmt.Errorf("migration v%d: %w", m.version, err)
-			}
-		}
-	}
-	return nil
-}
