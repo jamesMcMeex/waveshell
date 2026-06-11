@@ -22,7 +22,7 @@ func interpolate(s string) (string, error) {
 		return val
 	})
 	if len(missing) > 0 {
-		return "", fmt.Errorf("environment variables not set: %s", strings.Join(missing, ", "))
+		return result, fmt.Errorf("environment variables not set: %s", strings.Join(missing, ", "))
 	}
 	return result, nil
 }

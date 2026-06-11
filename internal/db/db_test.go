@@ -229,11 +229,36 @@ func TestAllTrackPaths(t *testing.T) {
 	db := openTestDB(t)
 	migrateTestDB(t, db)
 
-	assert.Len(t, []string{}, 0)
-
 	paths, err := AllTrackPaths(db)
 	require.NoError(t, err)
 	assert.Empty(t, paths)
+
+	track := model.Track{
+		FilePath:      "/music/test.flac",
+		FileSizeBytes: 1000,
+		LastModified:  100,
+		DurationMs:    5000,
+		Format:        "FLAC",
+		SampleRate:    44100,
+	}
+	_, err = UpsertTrack(db, track, 100)
+	require.NoError(t, err)
+
+	paths, err = AllTrackPaths(db)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/music/test.flac"}, paths)
+}
+
+func TestInsertAlbum_nilArtistID(t *testing.T) {
+	db := openTestDB(t)
+	migrateTestDB(t, db)
+
+	album := model.Album{
+		Title: "No Artist Album",
+	}
+	id, err := InsertAlbum(db, album)
+	require.NoError(t, err)
+	assert.Greater(t, id, int64(0))
 }
 
 func TestWALModeConfirmed(t *testing.T) {

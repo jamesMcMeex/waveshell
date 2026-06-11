@@ -108,8 +108,9 @@ func execTx(d *sql.DB, stmts []string) (err error) {
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
+	committed := false
 	defer func() {
-		if tx != nil {
+		if !committed {
 			_ = tx.Rollback()
 		}
 	}()
@@ -123,6 +124,6 @@ func execTx(d *sql.DB, stmts []string) (err error) {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	tx = nil
+	committed = true
 	return nil
 }

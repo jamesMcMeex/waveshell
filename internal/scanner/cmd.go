@@ -252,7 +252,10 @@ func sortName(name string) string {
 	lower := strings.ToLower(name)
 	for _, prefix := range []string{"the ", "a ", "an "} {
 		if strings.HasPrefix(lower, prefix) {
-			suffix := name[len(prefix):]
+			suffix := strings.TrimSpace(name[len(prefix):])
+			if suffix == "" || strings.ToLower(suffix) == strings.TrimSpace(prefix) {
+				return name
+			}
 			return suffix + ", " + capitalize(strings.TrimSpace(prefix))
 		}
 	}

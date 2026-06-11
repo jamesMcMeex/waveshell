@@ -73,7 +73,7 @@ func inspectFLAC(f *os.File) (*streamInfo, error) {
 
 	sampleRate := int(binary.BigEndian.Uint32(streamInfoBuf[10:14]) >> 12)
 	channels := int((streamInfoBuf[12]>>1)&0x07) + 1
-	bitDepth := int((binary.BigEndian.Uint16(streamInfoBuf[12:14])>>5)&0x1F) + 1
+	bitDepth := int((binary.BigEndian.Uint16(streamInfoBuf[12:14])>>4)&0x1F) + 1
 
 	totalSamples := int64(streamInfoBuf[13]&0x0F)<<32 |
 		int64(streamInfoBuf[14])<<24 |

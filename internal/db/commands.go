@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -35,11 +36,17 @@ func QueryArtistsCmd(d *sql.DB) tea.Cmd {
 
 func QueryTagSliceCmd(d *sql.DB, mode model.BrowseMode) tea.Cmd {
 	return func() tea.Msg {
-		col, err := tagSliceColumn(mode)
-		if err != nil {
-			return messages.DBErrorMsg{Op: fmt.Sprintf("query %s slice", mode), Err: err}
+		var q string
+		switch mode {
+		case model.BrowseModeLabel:
+			q = `SELECT DISTINCT label FROM tracks WHERE label IS NOT NULL ORDER BY label`
+		case model.BrowseModeGenre:
+			q = `SELECT DISTINCT genre FROM tracks WHERE genre IS NOT NULL ORDER BY genre`
+		case model.BrowseModeYear:
+			q = `SELECT DISTINCT year FROM tracks WHERE year IS NOT NULL ORDER BY year`
+		default:
+			return messages.DBErrorMsg{Op: "query tag slice", Err: fmt.Errorf("unsupported browse mode: %s", mode)}
 		}
-		q := fmt.Sprintf(`SELECT DISTINCT %s FROM tracks WHERE %s IS NOT NULL ORDER BY %s`, col, col, col)
 		rows, err := d.Query(q)
 		if err != nil {
 			return messages.DBErrorMsg{Op: fmt.Sprintf("query %s slice", mode), Err: err}
@@ -61,19 +68,6 @@ func QueryTagSliceCmd(d *sql.DB, mode model.BrowseMode) tea.Cmd {
 	}
 }
 
-func tagSliceColumn(mode model.BrowseMode) (string, error) {
-	switch mode {
-	case model.BrowseModeLabel:
-		return "label", nil
-	case model.BrowseModeGenre:
-		return "genre", nil
-	case model.BrowseModeYear:
-		return "year", nil
-	default:
-		return "", fmt.Errorf("unsupported browse mode for tag slice: %s", mode)
-	}
-}
-
 func QueryAlbumsForArtistCmd(d *sql.DB, artistID int64) tea.Cmd {
 	return func() tea.Msg {
 		rows, err := d.Query(`
@@ -91,19 +85,26 @@ func QueryAlbumsForArtistCmd(d *sql.DB, artistID int64) tea.Cmd {
 
 func QueryAlbumsForTagCmd(d *sql.DB, mode model.BrowseMode, key string) tea.Cmd {
 	return func() tea.Msg {
-		col, err := tagSliceColumn(mode)
-		if err != nil {
-			return messages.DBErrorMsg{Op: "query albums for tag", Err: err}
+		var q string
+		switch mode {
+		case model.BrowseModeLabel:
+			q = `SELECT DISTINCT a.id, a.title, COALESCE(a.album_artist,''), a.year, a.track_count
+				FROM albums a JOIN tracks t ON t.album_id = a.id
+				WHERE t.label = ? ORDER BY a.year, a.title`
+		case model.BrowseModeGenre:
+			q = `SELECT DISTINCT a.id, a.title, COALESCE(a.album_artist,''), a.year, a.track_count
+				FROM albums a JOIN tracks t ON t.album_id = a.id
+				WHERE t.genre = ? ORDER BY a.year, a.title`
+		case model.BrowseModeYear:
+			q = `SELECT DISTINCT a.id, a.title, COALESCE(a.album_artist,''), a.year, a.track_count
+				FROM albums a JOIN tracks t ON t.album_id = a.id
+				WHERE t.year = ? ORDER BY a.year, a.title`
+		default:
+			return messages.DBErrorMsg{Op: "query albums for tag", Err: fmt.Errorf("unsupported browse mode: %s", mode)}
 		}
-		q := fmt.Sprintf(`
-			SELECT DISTINCT a.id, a.title, COALESCE(a.album_artist,''), a.year, a.track_count
-			FROM albums a
-			JOIN tracks t ON t.album_id = a.id
-			WHERE t.%s = ?
-			ORDER BY a.year, a.title`, col)
 		rows, err := d.Query(q, key)
 		if err != nil {
-			return messages.DBErrorMsg{Op: fmt.Sprintf("query albums for %s=%s", col, key), Err: err}
+			return messages.DBErrorMsg{Op: fmt.Sprintf("query albums for %s", mode), Err: err}
 		}
 		defer func() { _ = rows.Close() }()
 
@@ -118,6 +119,7 @@ func scanAlbums(rows *sql.Rows) []model.Album {
 		var a model.Album
 		var year sql.NullInt64
 		if err := rows.Scan(&a.ID, &a.Title, &a.AlbumArtist, &year, &a.TrackCount); err != nil {
+			slog.Warn("scan album row", "error", err)
 			continue
 		}
 		if year.Valid {
@@ -143,6 +145,7 @@ func QueryTracksCmd(d *sql.DB, albumID int64) tea.Cmd {
 			var t model.Track
 			var tn, bd sql.NullInt64
 			if err := rows.Scan(&t.ID, &t.Title, &tn, &t.DurationMs, &t.Format, &t.SampleRate, &bd, &t.Bitrate); err != nil {
+				slog.Warn("scan track row", "error", err)
 				continue
 			}
 			if tn.Valid {
