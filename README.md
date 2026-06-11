@@ -4,25 +4,14 @@ A keyboard-driven, privacy-first terminal music player for local audio libraries
 
 ## Status
 
-Pre-development. Initial milestone (M1 — Project Foundation) is the starting point.
-
-## Features
-
-- Three-pane library browser (Artists → Albums → Tracks)
-- Browse modes: artist, label, genre, year, grouping
-- mpv-backed playback with gapless support
-- SQLite index with incremental rescan
-- Configurable columns, colour themes, and keybindings
-- Tag editing with atomic writes and before/after diff
-- Full offline — no network, no telemetry, no surprises
-
+Milestone 1 — Project Foundation. Config loading, structured logging, build tooling.
 See `docs/WAVESHELL_PRD.md` for the full milestone plan.
 
 ## Dependencies
 
 - **Go 1.22+** — build toolchain
-- **mpv** — runtime dependency for audio playback
-- **chafa** — optional, for terminal album art (post-MVP)
+- **mpv** — runtime dependency for audio playback (not required for M1)
+- **golangci-lint** — `brew install golangci-lint` (for `make lint`)
 
 ## Quick start
 
@@ -30,25 +19,39 @@ See `docs/WAVESHELL_PRD.md` for the full milestone plan.
 # Build
 make build
 
-# Run
+# Run (prints confirmation; no TUI yet)
 ./waveshell
 
-# With direct-launch path
-./waveshell ~/Music/Artist/Album
+# Run with config path
+./waveshell --config ~/.config/waveshell/config.toml
+
+# Print version
+./waveshell --version
 ```
-
-## Configure
-
-Config lives at `~/.config/waveshell/config.toml`. Missing file is not an error — all defaults apply. See `docs/CONFIG.md` for the full reference.
 
 ## Commands
 
-| Command       | Description                                   |
-| ------------- | --------------------------------------------- |
-| `make build`  | `go build -o waveshell ./cmd/waveshell`       |
-| `make test`   | `go test ./... -race -coverprofile=coverage.out` |
-| `make lint`   | `golangci-lint run`                           |
-| `make cov`    | `go tool cover -html=coverage.out`            |
+| Command      | Description                                   |
+| ------------ | --------------------------------------------- |
+| `make build` | `go build -o waveshell ./cmd/waveshell`       |
+| `make test`  | `go test ./... -race -coverprofile=coverage.out` |
+| `make lint`  | `golangci-lint run`                           |
+| `make cov`   | `go tool cover -html=coverage.out`            |
+| `make run`   | Build and print startup message               |
+
+## First setup
+
+1. Install Go 1.22+: `brew install go`
+2. Install golangci-lint: `brew install golangci-lint`
+3. Run `go mod tidy` to download dependencies and generate `go.sum`
+4. Run `make build` to compile
+5. Create `~/.config/waveshell/config.toml` (optional — all defaults apply)
+
+## Configure
+
+Config lives at `~/.config/waveshell/config.toml` (resolved via `os.UserConfigDir()` —
+`~/.config/` on Linux, `~/Library/Application Support/` on macOS). Missing file is
+not an error — all defaults apply. See `docs/CONFIG.md` for the full reference.
 
 ## Project
 

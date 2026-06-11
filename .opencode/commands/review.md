@@ -1,5 +1,5 @@
 ---
-description: Code review via Claude Sonnet 4.6
+description: Code review
 agent: review
 subtask: true
 ---
