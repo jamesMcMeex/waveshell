@@ -1,3 +1,5 @@
+// Package config loads, validates, and writes config.toml. It exports the
+// Config struct that every other package reads during initialisation.
 package config
 
 import (
