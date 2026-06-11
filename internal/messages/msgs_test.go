@@ -39,6 +39,26 @@ func TestTickMsg_isMsg(t *testing.T) {
 	_ = msg
 }
 
+func TestArtistListResultMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = ArtistListResultMsg{}
+	_ = msg
+}
+
+func TestTagSliceResultMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = TagSliceResultMsg{}
+	_ = msg
+}
+
+func TestAlbumListResultMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = AlbumListResultMsg{}
+	_ = msg
+}
+
+func TestTrackListResultMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = TrackListResultMsg{}
+	_ = msg
+}
+
 func TestTickCmd_returnsTickMsg(t *testing.T) {
 	cmd := TickCmd()
 	require.NotNil(t, cmd)

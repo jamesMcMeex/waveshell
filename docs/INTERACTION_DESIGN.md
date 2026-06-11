@@ -72,7 +72,7 @@ Panels that render on top of Layer 0. The base layer remains visible in the back
 | Search     | `/`     | `Esc`        |
 | Queue      | `q`     | `Esc`        |
 | Info Panel | `i`     | `Esc`        |
-| Help       | `?`     | `Esc` or `q` |
+| Help       | `h`   | `Esc` or `q` |
 
 Overlays are full-width or near-full-width panels anchored to the top of the content area. They are visually distinct from the base layer via a border and title header using the `accent` colour.
 
@@ -115,7 +115,6 @@ This is the architectural foundation for tag-slice views and playlists. All mode
 | `label`    | Labels    | Albums on label    | Tracks on album                        | ✓        |
 | `genre`    | Genres    | Albums in genre    | Tracks on album                        | ✓        |
 | `year`     | Years     | Albums in year     | Tracks on album                        | ✓        |
-| `grouping` | Groupings | Albums in grouping | Tracks on album                        | ✓        |
 | `playlist` | Playlists | Albums in playlist | Tracks in playlist (filtered by album) | post-MVP |
 
 ### Mode state in the Model
@@ -128,7 +127,6 @@ const (
     BrowseModeLabel    BrowseMode = "label"
     BrowseModeGenre    BrowseMode = "genre"
     BrowseModeYear     BrowseMode = "year"
-    BrowseModeGrouping BrowseMode = "grouping"
     BrowseModePlaylist BrowseMode = "playlist"
 )
 ```
@@ -156,7 +154,7 @@ visible = ["playlist_position", "title", "artist", "album", "duration", "format"
 
 ### Contextual mode switch from the Info Panel _(post-MVP)_
 
-When viewing a track's info panel, the user can jump directly to a tag-filtered view by focusing a field (Label, Genre, Grouping, Year) and pressing `Enter`. This opens the Browse Mode Picker pre-selected on the matching mode, with the Left pane cursor pre-positioned on that value. The Info Panel field highlight interaction should be designed to accommodate this from Milestone 7.
+When viewing a track's info panel, the user can jump directly to a tag-filtered view by focusing a field (Label, Genre, Year) and pressing `Enter`. This opens the Browse Mode Picker pre-selected on the matching mode, with the Left pane cursor pre-positioned on that value. The Info Panel field highlight interaction should be designed to accommodate this from Milestone 7.
 
 ---
 
@@ -303,8 +301,8 @@ Keys are shown in brackets. Actions are lowercase. The bar is rendered in `muted
 
 | Context                                     | Hint bar content                                                                   |
 | ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Base — Left pane focused                    | `[↵] select  [B] browse mode  [tab] →  [/] search  [?] help`                       |
-| Base — Middle pane focused                  | `[↵] select  [tab] →  [a] add album  [/] search  [?] help`                         |
+| Base — Left pane focused                    | `[↵] select  [b] browse mode  [c] theme  [tab] →  [/] search  [h] help`                       |
+| Base — Middle pane focused                  | `[↵] select  [tab] →  [a] add album  [/] search  [h] help`                         |
 | Base — Tracks pane, no selection            | `[↵] action  [spc] queue  [i] info  [v] select  [C] columns  [S] sort  [/] search` |
 | Base — Tracks pane, items selected          | `[e] edit tags  [spc] add to queue  [V] select all  [esc] clear`                   |
 | Base — Playlist left pane                   | `[↵] open  [n] new playlist  [B] browse mode  [tab] →`                             |
@@ -352,7 +350,7 @@ The base layer. Three panes: Left / Middle / Tracks (labels determined by browse
 
 **Pane focus model:**
 
-Active pane border renders in `accent` colour. Inactive pane borders render in `muted`. Focus cycles rightward with `Tab` and leftward with `Shift+Tab`. `h` and `l` also shift focus left and right.
+Active pane border renders in `accent` colour. Inactive pane borders render in `muted`. Focus cycles rightward with `Tab` and leftward with `Shift+Tab`. `l` and `j` also shift focus right and left respectively.
 
 **Filtering behaviour:**
 
@@ -364,7 +362,7 @@ When a right pane's contents change due to a selection in the left pane, that pa
 
 **Letter-jump:**
 
-In any pane, pressing a letter key (`A`–`Z`, case-insensitive) moves the cursor to the first item whose display name begins with that letter. Works in all three panes across all browse modes.
+In any pane, pressing a letter key (range depends on context — `A`–`S` for pane movement letters, but all panes handle their own active range) moves the cursor to the first item whose display name begins with that letter. Works in all three panes across all browse modes.
 
 **Scroll:**
 
@@ -933,23 +931,23 @@ All bindings are configurable in `config.toml`. The defaults below are the shipp
 
 | Key           | Action                                | Notes                                |
 | ------------- | ------------------------------------- | ------------------------------------ |
-| `j` / `↓`     | Cursor down                           |                                      |
-| `k` / `↑`     | Cursor up                             |                                      |
+| `k` / `↓`     | Cursor down                           |                                      |
+| `i` / `↑`     | Cursor up                             |                                      |
 | `Ctrl+D`      | Scroll down half page                 |                                      |
 | `Ctrl+U`      | Scroll up half page                   |                                      |
-| `g` / `Home`  | Jump to top                           |                                      |
-| `G` / `End`   | Jump to bottom                        |                                      |
+| `t` / `Home`  | Jump to top                           |                                      |
+| `g` / `End`   | Jump to bottom                        |                                      |
 | `A`–`Z`       | Letter-jump                           | First item starting with that letter |
 | `Tab`         | Focus next pane (right)               | Wraps: Tracks → Left                 |
 | `Shift+Tab`   | Focus previous pane (left)            | Wraps: Left → Tracks                 |
-| `h`           | Focus previous pane                   |                                      |
+| `j`           | Focus previous pane                   |                                      |
 | `l`           | Focus next pane                       |                                      |
 | `Enter`       | Open Action Dialog                    |                                      |
 | `Space`       | Toggle track selection                | Tracks pane                          |
 | `Shift+Space` | Insert selected as play-next          | Tracks pane                          |
 | `a`           | Add album to queue                    | From any pane                        |
 | `V`           | Select all visible tracks             | Tracks pane                          |
-| `B`           | Open Browse Mode Picker               | Any pane                             |
+| `b`           | Open Browse Mode Picker               | Any pane                             |
 | `C`           | Open Column Manager                   | Tracks pane                          |
 | `S`           | Open Sort Picker                      | Tracks pane / Search Results         |
 | `i`           | Open Info Panel                       | Tracks pane                          |
@@ -957,7 +955,8 @@ All bindings are configurable in `config.toml`. The defaults below are the shipp
 | `/`           | Open Search overlay                   |                                      |
 | `q`           | Open Queue overlay                    |                                      |
 | `m`           | Cycle playback mode                   |                                      |
-| `?`           | Open Help overlay                     |                                      |
+| `c`           | Cycle theme                           |                                      |
+| `h`           | Open Help overlay                     |                                      |
 | `Esc`         | Clear selection / no-op               |                                      |
 | `Ctrl+C`      | Quit                                  |                                      |
 

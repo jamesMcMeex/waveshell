@@ -7,6 +7,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/jamesMcMeex/waveshell/internal/model"
 )
 
 // ScanStartedMsg signals the beginning of a library scan.
@@ -42,6 +44,30 @@ type DBErrorMsg struct {
 	Op    string
 	Err   error
 	Fatal bool
+}
+
+// ArtistListResultMsg carries the artist list for the left pane in artist browse mode.
+type ArtistListResultMsg struct {
+	Artists []model.Artist
+}
+
+// TagSliceResultMsg carries distinct values for the left pane in label, genre, or year browse modes.
+type TagSliceResultMsg struct {
+	Mode   model.BrowseMode
+	Values []string
+}
+
+// AlbumListResultMsg carries albums for the middle pane, filtered by the selected left-pane value.
+type AlbumListResultMsg struct {
+	Mode   model.BrowseMode
+	Key    string
+	Albums []model.Album
+}
+
+// TrackListResultMsg carries tracks for the tracks pane, filtered by the selected album.
+type TrackListResultMsg struct {
+	AlbumID int64
+	Tracks  []model.Track
 }
 
 // TickMsg is emitted every second by TickCmd for periodic UI updates.

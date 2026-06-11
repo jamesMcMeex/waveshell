@@ -145,7 +145,7 @@ Four named colour roles defined in the config. The constraint enforces visual co
 
 | Key                | Action                            |
 | ------------------ | --------------------------------- |
-| `h j k l` / arrows | Navigate                          |
+| `i k j l` / arrows | Navigate (up, down, left, right)   |
 | `Tab`              | Shift focus between panes         |
 | `Enter`            | Play selected                     |
 | `Space`            | Add to queue                      |
@@ -156,7 +156,7 @@ Four named colour roles defined in the config. The constraint enforces visual co
 | `e`                | Edit metadata (within info panel) |
 | `q`                | Queue view                        |
 | `m`                | Cycle playback mode               |
-| `?`                | Help / keybinding reference       |
+| `h`                | Help / keybinding reference       |
 | `Esc`              | Close overlay / cancel            |
 
 All keybindings are configurable via `config.toml`.

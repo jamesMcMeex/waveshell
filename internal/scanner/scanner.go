@@ -1,3 +1,5 @@
+// Package scanner walks library paths, reads audio metadata via dhowden/tag
+// and stream inspection, and persists results to SQLite through the db package.
 package scanner
 
 import (

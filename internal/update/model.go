@@ -16,6 +16,7 @@ type Model struct {
 	Queue   QueueState
 	Search  SearchState
 	UI      UIState
+	Help    HelpState
 	Config  *config.Config
 	DB      *sql.DB
 }
@@ -27,9 +28,16 @@ type LibraryState struct {
 	ScanTotal     int
 	ScanCurrent   string
 	ScanComplete  bool
-	Tracks        []model.Track
-	Artists       []model.Artist
-	Albums        []model.Album
+
+	Artists []model.Artist
+	Albums  []model.Album
+	Tracks  []model.Track
+
+	TagSliceValues []string
+
+	SelectedArtistID int64
+	SelectedAlbumID  int64
+	SelectedTagKey   string
 }
 
 type PlayerState struct {
@@ -53,7 +61,32 @@ type SearchState struct {
 	Results any
 }
 
+type ActiveOverlay int
+
+const (
+	OverlayNone ActiveOverlay = iota
+	OverlayHelp
+)
+
 type UIState struct {
 	Width  int
 	Height int
+
+	BrowseMode    model.BrowseMode
+	ActivePane    model.Pane
+	ActiveOverlay ActiveOverlay
+
+	LeftCursor   int
+	LeftOffset   int
+	MiddleCursor int
+	MiddleOffset int
+	RightCursor  int
+	RightOffset  int
+
+	ShowBrowsePicker   bool
+	BrowsePickerCursor int
+}
+
+type HelpState struct {
+	Active bool
 }

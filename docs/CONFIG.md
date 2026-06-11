@@ -215,10 +215,10 @@ cursor_left        = ["h", "left"]
 cursor_right       = ["l", "right"]
 page_down          = ["ctrl+d"]
 page_up            = ["ctrl+u"]
-jump_to_top        = ["g", "home"]
-jump_to_bottom     = ["G", "end"]
+jump_to_top        = ["t", "home"]
+jump_to_bottom     = ["g", "end"]
 focus_next_pane    = ["tab", "l"]
-focus_prev_pane    = ["shift+tab", "h"]
+focus_prev_pane    = ["shift+tab", "j"]
 
 # Library actions
 action_menu        = ["enter"]
@@ -232,8 +232,9 @@ select_all         = ["V"]
 open_search        = ["/"]
 open_queue         = ["q"]
 open_info          = ["i"]
-open_help          = ["?"]
-open_browse_picker = ["B"]
+cycle_theme        = ["c"]
+open_help          = ["h"]
+open_browse_picker = ["b"]
 open_columns       = ["C"]
 open_sort_picker   = ["S"]
 edit_tags          = ["e"]
@@ -604,7 +605,7 @@ default_playback_mode = "stop_at_end"
 theme = "slate"
 
 # Browse mode shown at startup.
-# Options: "artist" | "label" | "genre" | "year" | "grouping"
+# Options: "artist" | "label" | "genre" | "year"
 default_browse_mode = "artist"
 
 # Columns shown in the Tracks pane, per browse mode.
@@ -644,14 +645,14 @@ visible = ["track_number", "title", "artist", "format", "duration"]
 
 [keybindings]
 # Navigation
-cursor_down        = ["j", "down"]
-cursor_up          = ["k", "up"]
-cursor_left        = ["h", "left"]
+cursor_down        = ["k", "down"]
+cursor_up          = ["i", "up"]
+cursor_left        = ["j", "left"]
 cursor_right       = ["l", "right"]
 page_down          = ["ctrl+d"]
 page_up            = ["ctrl+u"]
-jump_to_top        = ["g", "home"]
-jump_to_bottom     = ["G", "end"]
+jump_to_top        = ["t", "home"]
+jump_to_bottom     = ["g", "end"]
 focus_next_pane    = ["tab"]
 focus_prev_pane    = ["shift+tab"]
 
@@ -667,8 +668,9 @@ select_all         = ["V"]
 open_search        = ["/"]
 open_queue         = ["q"]
 open_info          = ["i"]
-open_help          = ["?"]
-open_browse_picker = ["B"]
+cycle_theme        = ["c"]
+open_help          = ["h"]
+open_browse_picker = ["b"]
 open_columns       = ["C"]
 open_sort_picker   = ["S"]
 edit_tags          = ["e"]

@@ -58,6 +58,7 @@ func continueScanCmd(state *scanState) tea.Cmd {
 
 		tags, err := ScanFile(item.path)
 		if err != nil {
+			slog.Warn("continueScan: scan file error", "path", item.path, "error", err)
 			state.skipped++
 			return messages.ScanFileErrorMsg{
 				Path:    item.path,
@@ -68,6 +69,7 @@ func continueScanCmd(state *scanState) tea.Cmd {
 
 		err = persistTrack(state.db, tags, item)
 		if err != nil {
+			slog.Error("continueScan: persist error", "path", item.path, "error", err)
 			state.skipped++
 			return messages.ScanFileErrorMsg{
 				Path:    item.path,
@@ -78,6 +80,7 @@ func continueScanCmd(state *scanState) tea.Cmd {
 
 		state.seenPaths[item.path] = true
 		state.processed++
+		slog.Debug("continueScan: processed", "path", item.path, "processed", state.processed)
 		return messages.ScanProgressMsg{
 			Processed:   state.processed,
 			Total:       state.total,
