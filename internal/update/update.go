@@ -1,6 +1,7 @@
 package update
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/jamesMcMeex/waveshell/internal/db"
 	"github.com/jamesMcMeex/waveshell/internal/messages"
 	"github.com/jamesMcMeex/waveshell/internal/model"
+	"github.com/jamesMcMeex/waveshell/internal/mpv"
 	"github.com/jamesMcMeex/waveshell/internal/scanner"
 )
 
@@ -18,6 +20,9 @@ func InitialModel() Model {
 		UI: UIState{
 			BrowseMode: model.BrowseModeArtist,
 			ActivePane: model.PaneLeft,
+		},
+		Player: PlayerState{
+			Volume: 80,
 		},
 	}
 }
@@ -30,6 +35,10 @@ func (m Model) Init() tea.Cmd {
 	)
 
 	var cmds []tea.Cmd
+
+	if m.Player.MPVReady && m.Player.Events != nil {
+		cmds = append(cmds, mpv.SubscribeCmd(m.Player.Events))
+	}
 
 	if m.Config != nil && m.Config.Library.ScanOnStartup && len(m.Config.Library.Paths) > 0 {
 		slog.Info("init: queuing scan", "paths", m.Config.Library.Paths)
@@ -182,6 +191,69 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	// ── mpv lifecycle ─────────────────────────────────────────────────────
+
+	case messages.MPVReadyMsg:
+		m.Player.Events = msg.Events
+		m.Player.MPVReady = true
+		return m, mpv.SubscribeCmd(msg.Events)
+
+	case messages.MPVNotFoundMsg:
+		m.MPVErr = fmt.Errorf("mpv not found on PATH — install mpv to enable playback")
+		slog.Warn("mpv not found, playback disabled")
+		return m, nil
+
+	case messages.MPVConnectionLostMsg:
+		m.Player.State = model.PlaybackStateStopped
+		m.Player.CurrentTrack = nil
+		m.Player.MPVReady = false
+		m.Player.PositionSec = 0
+		m.Player.DurationSec = 0
+		slog.Warn("mpv connection lost", "error", msg.Err)
+		return m, nil
+
+	// ── mpv events (subscription) ─────────────────────────────────────────
+
+	case messages.PlaybackStateChangedMsg:
+		m.Player.State = msg.State
+		if msg.State == model.PlaybackStatePlaying {
+			m.Player.DisplayPositionSec = m.Player.PositionSec
+			return m, tea.Batch(
+				messages.TickCmd(),
+				mpv.SubscribeCmd(m.Player.Events),
+			)
+		}
+		return m, mpv.SubscribeCmd(m.Player.Events)
+
+	case messages.TimePositionChangedMsg:
+		m.Player.PositionSec = msg.PositionSec
+		m.Player.DisplayPositionSec = msg.PositionSec
+		return m, mpv.SubscribeCmd(m.Player.Events)
+
+	case messages.DurationChangedMsg:
+		m.Player.DurationSec = msg.DurationSec
+		return m, mpv.SubscribeCmd(m.Player.Events)
+
+	case messages.VolumeChangedMsg:
+		m.Player.Volume = msg.Volume
+		return m, mpv.SubscribeCmd(m.Player.Events)
+
+	case messages.TrackEndedMsg:
+		slog.Info("track ended", "reason", msg.Reason)
+		m.Player.State = model.PlaybackStateStopped
+		m.Player.CurrentTrack = nil
+		m.Player.PositionSec = 0
+		m.Player.DisplayPositionSec = 0
+		return m, mpv.SubscribeCmd(m.Player.Events)
+
+	// ── Playback tick ─────────────────────────────────────────────────────
+
+	case messages.TickMsg:
+		if m.Player.State == model.PlaybackStatePlaying {
+			return m, messages.TickCmd()
+		}
+		return m, nil
+
 	// ── Key events ────────────────────────────────────────────────────────
 
 	case tea.KeyMsg:
@@ -260,6 +332,32 @@ func handleKeyMsg(m Model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "l", "right":
 		m.UI.ActivePane = nextPane(m.UI.ActivePane)
 		return m, nil
+	}
+
+	// Playback keys (always active)
+	if m.Player.MPVReady {
+		switch key {
+		case "p":
+			return handlePlayPause(m)
+		case ",":
+			return handlePrevTrack(m)
+		case ".":
+			return handleNextTrack(m)
+		case "[":
+			return handleSeek(m, -5)
+		case "]":
+			return handleSeek(m, 5)
+		case "{":
+			return handleSeek(m, -30)
+		case "}":
+			return handleSeek(m, 30)
+		case "-":
+			return handleVolume(m, -5)
+		case "=":
+			return handleVolume(m, 5)
+		case "0":
+			return handleVolume(m, -m.Player.Volume) // reset to 0
+		}
 	}
 
 	// Pane-local keys
@@ -515,6 +613,10 @@ func handleRightPaneKey(m Model, key string) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "enter":
+		tracks := trackList(m)
+		if m.UI.RightCursor < len(tracks) {
+			return playTrack(m, tracks[m.UI.RightCursor])
+		}
 		return m, nil
 	}
 
@@ -562,6 +664,10 @@ func adjustOffset(offset *int, cursor int, height int) {
 	}
 }
 
+// isLetter returns true for single uppercase letters A-Z. Shift+Letter is the
+// convention for letter-jumping through lists (browse pane, queue, etc.).
+// Lowercase letters are reserved for navigation commands (e.g. g = bottom).
+// See docs/INTERACTION_DESIGN.md §Keyboard Navigation.
 func isLetter(key string) bool {
 	if len(key) != 1 {
 		return false
@@ -614,4 +720,111 @@ func nextTheme(current string) string {
 		}
 	}
 	return names[0]
+}
+
+// ── Playback helpers ──────────────────────────────────────────────────────────
+
+func handlePlayPause(m Model) (tea.Model, tea.Cmd) {
+	if m.Player.CurrentTrack == nil {
+		tracks := trackList(m)
+		if m.UI.RightCursor < len(tracks) {
+			return playTrack(m, tracks[m.UI.RightCursor])
+		}
+		return m, nil
+	}
+	var err error
+	if m.Player.State == model.PlaybackStatePlaying {
+		err = m.MPV.Pause()
+	} else {
+		err = m.MPV.Play()
+	}
+	if err != nil {
+		slog.Warn("playback: play/pause failed", "error", err)
+	}
+	return m, nil
+}
+
+func handlePrevTrack(m Model) (tea.Model, tea.Cmd) {
+	if len(m.Library.Tracks) == 0 {
+		return m, nil
+	}
+	track := m.Library.Tracks[m.UI.RightCursor]
+	return playTrack(m, track)
+}
+
+func handleNextTrack(m Model) (tea.Model, tea.Cmd) {
+	if len(m.Library.Tracks) == 0 {
+		return m, nil
+	}
+	track := m.Library.Tracks[m.UI.RightCursor]
+	return playTrack(m, track)
+}
+
+func handleSeek(m Model, seconds float64) (tea.Model, tea.Cmd) {
+	if m.Player.CurrentTrack == nil {
+		return m, nil
+	}
+	if err := m.MPV.SeekRelative(seconds); err != nil {
+		slog.Warn("playback: seek failed", "error", err)
+	}
+	return m, nil
+}
+
+func handleVolume(m Model, delta int) (tea.Model, tea.Cmd) {
+	if !m.Player.MPVReady {
+		return m, nil
+	}
+	newVol := m.Player.Volume + delta
+	if newVol < 0 {
+		newVol = 0
+	}
+	if newVol > 100 {
+		newVol = 100
+	}
+	if err := m.MPV.SetVolume(newVol); err != nil {
+		slog.Warn("playback: volume failed", "error", err)
+	}
+	m.Player.Volume = newVol
+	return m, nil
+}
+
+func playTrack(m Model, track model.Track) (tea.Model, tea.Cmd) {
+	if !m.Player.MPVReady {
+		return m, nil
+	}
+
+	slog.Info("playback: loading track", "path", track.FilePath)
+
+	if err := m.MPV.LoadFile(track.FilePath); err != nil {
+		slog.Warn("playback: load failed", "error", err, "path", track.FilePath)
+		return m, nil
+	}
+	if err := m.MPV.Play(); err != nil {
+		slog.Warn("playback: play failed", "error", err)
+		return m, nil
+	}
+
+	// Drain stale events generated by LoadFile/Play (idle→loaded transition
+	// end-file, etc.) so they don't immediately clear the current track.
+	drainMPVEvents(m.Player.Events)
+
+	m.Player.CurrentTrack = &track
+	m.Player.State = model.PlaybackStatePlaying
+	m.Player.PositionSec = 0
+	m.Player.DisplayPositionSec = 0
+	m.Player.DurationSec = float64(track.DurationMs) / 1000.0
+	return m, tea.Batch(
+		messages.TickCmd(),
+		mpv.SubscribeCmd(m.Player.Events),
+	)
+}
+
+func drainMPVEvents(ch <-chan tea.Msg) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
+		}
+	}
 }

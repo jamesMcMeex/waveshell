@@ -117,7 +117,11 @@ func execTx(d *sql.DB, stmts []string) (err error) {
 
 	for _, stmt := range stmts {
 		if _, err := tx.Exec(stmt); err != nil {
-			return fmt.Errorf("exec %q: %w", stmt[:60], err)
+			short := stmt
+			if len(short) > 60 {
+				short = short[:60]
+			}
+			return fmt.Errorf("exec %q: %w", short, err)
 		}
 	}
 

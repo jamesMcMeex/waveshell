@@ -88,3 +88,15 @@ func (t Theme) HelpTitle() lipgloss.Style {
 func (t Theme) HelpKey() lipgloss.Style {
 	return lipgloss.NewStyle().Foreground(t.Accent)
 }
+
+func (t Theme) NowPlaying() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.FG)
+}
+
+func (t Theme) NowPlayingMuted() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.Muted)
+}
+
+func (t Theme) NowPlayingAccent() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(t.Accent).Bold(true)
+}

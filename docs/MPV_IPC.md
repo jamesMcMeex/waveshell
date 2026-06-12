@@ -23,7 +23,7 @@
 mpv is launched as a subprocess with the following flags:
 
 ```
-mpv --input-ipc-server=/tmp/waveshell.sock --idle --no-terminal
+mpv --input-ipc-server=/tmp/waveshell.sock --idle=yes --no-terminal
 ```
 
 The socket path is configurable via `config.toml` `[player].mpv_socket` (default: `/tmp/waveshell.sock`).

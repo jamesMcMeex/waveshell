@@ -263,6 +263,7 @@ func TestJumpToBottom_GNowDoesLetterJump(t *testing.T) {
 
 	result, _ := m.Update(keyRune('G'))
 	assert.Equal(t, 0, result.(Model).UI.LeftCursor)
+	assert.Equal(t, "Goldie", result.(Model).Library.Artists[result.(Model).UI.LeftCursor].Name)
 }
 
 func TestHomeKeyMovesToTop(t *testing.T) {
@@ -682,4 +683,31 @@ func TestTrackColumnValue(t *testing.T) {
 func TestTrackColumnValue_zeroTrackNumber(t *testing.T) {
 	track := model.Track{}
 	assert.Equal(t, "--", trackColumnValue(track, "track_number"))
+}
+
+func TestBuildHelpBox_rendersKeyBindings(t *testing.T) {
+	cfg := config.Default()
+	th := ResolveTheme(&cfg)
+
+	m := Model{
+		UI:     UIState{Width: 80, Height: 40},
+		Config: &cfg,
+	}
+
+	box := buildHelpBox(m, th, 0, 50)
+
+	assert.Contains(t, box, "HELP")
+	assert.Contains(t, box, "NAVIGATION")
+	assert.Contains(t, box, "LIBRARY")
+	assert.Contains(t, box, "APPLICATION")
+	assert.Contains(t, box, "PLAYBACK")
+	assert.Contains(t, box, "COMING SOON")
+
+	assert.Contains(t, box, "Cursor up")
+	assert.Contains(t, box, "Focus previous pane")
+	assert.Contains(t, box, "Browse mode picker")
+	assert.Contains(t, box, "Play / pause")
+	assert.Contains(t, box, "Previous track")
+	assert.Contains(t, box, "Quit")
+	assert.Contains(t, box, "Search")
 }

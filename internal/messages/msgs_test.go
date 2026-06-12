@@ -80,6 +80,46 @@ func TestTickCmd_timeIsRecent(t *testing.T) {
 	assert.WithinDuration(t, before, tick.Time, time.Second+100*time.Millisecond)
 }
 
+func TestMPVReadyMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = MPVReadyMsg{}
+	_ = msg
+}
+
+func TestMPVNotFoundMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = MPVNotFoundMsg{}
+	_ = msg
+}
+
+func TestMPVConnectionLostMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = MPVConnectionLostMsg{}
+	_ = msg
+}
+
+func TestPlaybackStateChangedMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = PlaybackStateChangedMsg{}
+	_ = msg
+}
+
+func TestTimePositionChangedMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = TimePositionChangedMsg{}
+	_ = msg
+}
+
+func TestDurationChangedMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = DurationChangedMsg{}
+	_ = msg
+}
+
+func TestVolumeChangedMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = VolumeChangedMsg{}
+	_ = msg
+}
+
+func TestTrackEndedMsg_isMsg(t *testing.T) {
+	var msg tea.Msg = TrackEndedMsg{}
+	_ = msg
+}
+
 func TestScanProgressMsg_TotalSentinel(t *testing.T) {
 	msg := ScanProgressMsg{Total: -1}
 	assert.Equal(t, -1, msg.Total, "Total == -1 means walk in progress")

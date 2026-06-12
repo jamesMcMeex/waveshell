@@ -364,6 +364,8 @@ When a right pane's contents change due to a selection in the left pane, that pa
 
 In any pane, pressing a letter key (range depends on context — `A`–`S` for pane movement letters, but all panes handle their own active range) moves the cursor to the first item whose display name begins with that letter. Works in all three panes across all browse modes.
 
+> **Rule:** `Shift+Letter` (`A`–`Z`) is always letter-jump. Lowercase letters are reserved for navigation commands (e.g. `g` = jump to bottom, `t` = jump to top). Never assign lowercase letters to letter-jump or uppercase letters to navigation — this would break the convention.
+
 **Scroll:**
 
 Each pane scrolls independently. `Ctrl+D` / `Ctrl+U` scroll by half a page.

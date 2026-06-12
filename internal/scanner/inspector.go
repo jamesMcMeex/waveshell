@@ -413,6 +413,17 @@ func inspectWAV(f *os.File) (*streamInfo, error) {
 		return nil, fmt.Errorf("not WAV: missing WAVE")
 	}
 
+	var (
+		sampleRate int32
+		byteRate   int32
+		channels   int16
+		bitDepth   int16
+		blockAlign int16
+		dataSize   int32
+		hasFmt     bool
+		hasData    bool
+	)
+
 	remaining := int64(fileSize) - 4
 	for remaining > 8 {
 		var ckID [4]byte
@@ -424,11 +435,9 @@ func inspectWAV(f *os.File) (*streamInfo, error) {
 			break
 		}
 
-		if string(ckID[:]) == "fmt " {
-			var audioFormat, channels int16
-			var sampleRate, byteRate int32
-			var blockAlign, bitDepth int16
-
+		switch string(ckID[:]) {
+		case "fmt ":
+			var audioFormat int16
 			if err := binary.Read(f, binary.LittleEndian, &audioFormat); err != nil {
 				return nil, err
 			}
@@ -447,26 +456,61 @@ func inspectWAV(f *os.File) (*streamInfo, error) {
 			if err := binary.Read(f, binary.LittleEndian, &bitDepth); err != nil {
 				return nil, err
 			}
+			hasFmt = true
 
-			return &streamInfo{
-				SampleRate: int(sampleRate),
-				BitDepth:   int(bitDepth),
-				Channels:   int(channels),
-				Bitrate:    int(byteRate * 8 / 1000),
-			}, nil
+			// Seek past the rest of the fmt chunk
+			skip := int64(ckSize) - 16
+			if skip > 0 {
+				if _, err := f.Seek(skip, io.SeekCurrent); err != nil {
+					break
+				}
+				remaining -= skip
+			}
+
+		case "data":
+			dataSize = ckSize
+			hasData = true
+
+			// Seek past data
+			skip := int64(ckSize)
+			if skip%2 != 0 {
+				skip++
+			}
+			if _, err := f.Seek(skip, io.SeekCurrent); err != nil {
+				break
+			}
+			remaining -= skip
+
+		default:
+			padSize := ckSize
+			if padSize%2 != 0 {
+				padSize++
+			}
+			if _, err := f.Seek(int64(padSize), io.SeekCurrent); err != nil {
+				break
+			}
+			remaining -= int64(padSize)
 		}
 
-		padSize := ckSize
-		if padSize%2 != 0 {
-			padSize++
-		}
-		if _, err := f.Seek(int64(padSize), io.SeekCurrent); err != nil {
-			break
-		}
-		remaining -= int64(padSize) + 8
+		remaining -= 8 // ckID + ckSize header
 	}
 
-	return nil, fmt.Errorf("fmt chunk not found")
+	if !hasFmt {
+		return nil, fmt.Errorf("fmt chunk not found")
+	}
+
+	var durationMs int
+	if hasData && byteRate > 0 {
+		durationMs = int(int64(dataSize) * 1000 / int64(byteRate))
+	}
+
+	return &streamInfo{
+		SampleRate: int(sampleRate),
+		BitDepth:   int(bitDepth),
+		Channels:   int(channels),
+		Bitrate:    int(byteRate * 8 / 1000),
+		DurationMs: durationMs,
+	}, nil
 }
 
 func inspectOGG(f *os.File) (*streamInfo, error) {

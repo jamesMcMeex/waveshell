@@ -80,3 +80,46 @@ func TickCmd() tea.Cmd {
 		return TickMsg{Time: t}
 	})
 }
+
+// ── mpv Process ───────────────────────────────────────────────────────────────
+
+// MPVReadyMsg is sent after the mpv subprocess has started and the Unix socket
+// connection has been established. Events is the channel for SubscribeCmd.
+type MPVReadyMsg struct {
+	Events <-chan tea.Msg
+}
+
+// MPVNotFoundMsg is sent when the mpv binary cannot be located on PATH.
+type MPVNotFoundMsg struct{}
+
+// MPVConnectionLostMsg is sent when the socket connection drops unexpectedly.
+type MPVConnectionLostMsg struct {
+	Err error
+}
+
+// ── mpv Events ────────────────────────────────────────────────────────────────
+
+// PlaybackStateChangedMsg is sent when mpv's pause property changes.
+type PlaybackStateChangedMsg struct {
+	State model.PlaybackState
+}
+
+// TimePositionChangedMsg is sent when mpv's time-pos property changes.
+type TimePositionChangedMsg struct {
+	PositionSec float64
+}
+
+// DurationChangedMsg is sent when mpv's duration property is first available.
+type DurationChangedMsg struct {
+	DurationSec float64
+}
+
+// VolumeChangedMsg is sent when mpv's volume property changes.
+type VolumeChangedMsg struct {
+	Volume int
+}
+
+// TrackEndedMsg is sent when mpv's end-file event fires.
+type TrackEndedMsg struct {
+	Reason model.TrackEndReason
+}

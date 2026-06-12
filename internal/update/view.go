@@ -56,10 +56,11 @@ func renderBase(m Model) string {
 
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, left, middle, tracks)
 
+	nowPlaying := renderNowPlaying(m, theme)
 	statusBar := renderStatusBar(m, theme)
 	hints := renderKeyHints(m, theme)
 
-	return lipgloss.JoinVertical(lipgloss.Left, panes, statusBar, hints)
+	return lipgloss.JoinVertical(lipgloss.Left, panes, nowPlaying, statusBar, hints)
 }
 
 func renderLeftPane(m Model, th Theme, width int, height int) string {
@@ -257,7 +258,17 @@ func columnWidths(m Model, cols []string, innerWidth int) map[string]int {
 func renderStatusBar(m Model, th Theme) string {
 	var parts []string
 
-	if m.UI.BrowseMode != model.BrowseModeArtist {
+	if m.Library.Scanning {
+		total := m.Library.ScanTotal
+		if total < 0 {
+			total = 0
+		}
+		processed := m.Library.ScanProcessed
+		if processed > total {
+			total = processed
+		}
+		parts = append(parts, fmt.Sprintf("Scanning: %d/%d files", processed, total))
+	} else if m.UI.BrowseMode != model.BrowseModeArtist {
 		parts = append(parts, fmt.Sprintf("By %s", browseModeLabel(m.UI.BrowseMode)))
 	}
 
@@ -271,6 +282,8 @@ func renderStatusBar(m Model, th Theme) string {
 		parts = append(parts, fmt.Sprintf("%d tracks", trackCount))
 	} else if len(m.Library.Albums) > 0 {
 		parts = append(parts, fmt.Sprintf("%d albums", len(m.Library.Albums)))
+	} else if !m.Library.Scanning && m.Config != nil && len(m.Config.Library.Paths) == 0 {
+		parts = append(parts, "no library paths configured — edit config.toml")
 	}
 
 	if len(parts) == 0 {
@@ -293,8 +306,108 @@ func browseModeLabel(m model.BrowseMode) string {
 	}
 }
 
+func renderNowPlaying(m Model, th Theme) string {
+	if m.Player.State == model.PlaybackStateStopped || m.Player.CurrentTrack == nil {
+		return "" // no playing track
+	}
+
+	width := m.UI.Width
+	trk := m.Player.CurrentTrack
+
+	// --- Line 1: track info + progress ---
+	posSec := m.Player.DisplayPositionSec
+	if posSec > m.Player.DurationSec && m.Player.DurationSec > 0 {
+		posSec = m.Player.DurationSec
+	}
+	elapsed := formatDuration(int(posSec * 1000))
+	total := formatDuration(int(m.Player.DurationSec * 1000))
+
+	trackLabel := fmt.Sprintf("%s — %s", trk.Artist, trk.Title)
+	if len(trackLabel) > width-30 {
+		trackLabel = trackLabel[:width-33] + "..."
+	}
+
+	progressBar := renderProgressBar(posSec, m.Player.DurationSec, 10)
+
+	rightInfo := fmt.Sprintf("%s %s %s", elapsed, progressBar, total)
+
+	line1 := th.NowPlayingAccent().Render("▶") +
+		th.NowPlayingMuted().Render("  ") +
+		th.NowPlaying().Render(trackLabel) +
+		th.NowPlayingMuted().Render(
+			strings.Repeat(" ", width-len(trackLabel)-len(rightInfo)-3),
+		) +
+		th.NowPlaying().Render(rightInfo)
+
+	// --- Line 2: album + format badge + volume ---
+	formatBadge := th.FormatBadge().Render(FormatBadge(*trk))
+	albumLabel := fmt.Sprintf("%s · %s", trk.Album, formatBadge)
+
+	volStr := fmt.Sprintf("Vol: %d%%", m.Player.Volume)
+
+	var stateIcon string
+	switch m.Player.State {
+	case model.PlaybackStatePlaying:
+		stateIcon = "▶"
+	case model.PlaybackStatePaused:
+		stateIcon = "⏸"
+	default:
+		stateIcon = " "
+	}
+
+	// Volume on the right, album on the left
+	padding := width - len(albumLabel) - len(volStr) - 3
+	if padding < 1 {
+		padding = 1
+		albumLabel = albumLabel[:width-len(volStr)-6] + "..."
+	}
+
+	line2 := fmt.Sprintf(" %s %s%s%s",
+		stateIcon,
+		albumLabel,
+		strings.Repeat(" ", padding),
+		volStr,
+	)
+	line2 = th.NowPlayingMuted().Render(line2)
+
+	return lipgloss.JoinVertical(lipgloss.Left, line1, line2)
+}
+
+func renderProgressBar(posSec, durSec float64, barWidth int) string {
+	if durSec <= 0 {
+		return strings.Repeat("─", barWidth)
+	}
+	ratio := posSec / durSec
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+	filled := int(ratio * float64(barWidth))
+	if filled > barWidth {
+		filled = barWidth
+	}
+
+	bar := strings.Repeat("█", filled) + strings.Repeat("─", barWidth-filled)
+	return " " + bar + " "
+}
+
 func renderKeyHints(m Model, th Theme) string {
-	return th.KeyHintBar().Render("[i/k] navigate  [j/l] pane  [b] mode  [c] theme  [h] help  [q] quit")
+	var hints []string
+	if m.MPVErr != nil {
+		hints = append(hints, "[!] install mpv for playback")
+	} else if m.Player.MPVReady {
+		hints = append(hints, "[p] play")
+		hints = append(hints, "[,/.] prev/next")
+	}
+	hints = append(hints, "[i/k] navigate")
+	hints = append(hints, "[j/l] pane")
+	hints = append(hints, "[b] mode")
+	hints = append(hints, "[c] theme")
+	hints = append(hints, "[h] help")
+	hints = append(hints, "[q] quit")
+	return th.KeyHintBar().Render(strings.Join(hints, "  "))
 }
 
 func renderBrowsePicker(m Model, base string) string {
@@ -336,39 +449,20 @@ func renderHelpOverlay(m Model, base string) string {
 		maxHeight = 6
 	}
 	helpBox := buildHelpBox(m, th, m.Help.ScrollOffset, maxHeight)
-	helpLines := strings.Split(helpBox, "\n")
-	baseLines := strings.Split(base, "\n")
 
-	helpHeight := len(helpLines)
-	helpWidth := longestLine(helpLines)
-	baseHeight := len(baseLines)
+	statusBar := renderStatusBar(m, th)
+	hints := renderKeyHints(m, th)
 
-	startY := (baseHeight - helpHeight) / 2
-	if startY < 0 {
-		startY = 0
-	}
-	startX := (m.UI.Width - helpWidth) / 2
-	if startX < 0 {
-		startX = 0
-	}
+	bodyHeight := m.UI.Height - lipgloss.Height(statusBar) - lipgloss.Height(hints)
+	body := lipgloss.Place(
+		m.UI.Width,
+		bodyHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		helpBox,
+	)
 
-	for i, hl := range helpLines {
-		lineIdx := startY + i
-		if lineIdx >= len(baseLines) {
-			break
-		}
-		original := baseLines[lineIdx]
-		if startX >= len(original) {
-			baseLines[lineIdx] = original + strings.Repeat(" ", startX-len(original)) + hl
-		} else {
-			baseLines[lineIdx] = original[:startX] + hl
-			if len(original) > startX+len(hl) {
-				baseLines[lineIdx] += original[startX+len(hl):]
-			}
-		}
-	}
-
-	return strings.Join(baseLines, "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, body, statusBar, hints)
 }
 
 func buildHelpBox(m Model, th Theme, scrollOffset int, maxHeight int) string {
@@ -396,8 +490,16 @@ func buildHelpBox(m Model, th Theme, scrollOffset int, maxHeight int) string {
 		{k: "q", d: "Quit"},
 		{k: "Esc", d: "Dismiss overlay / cancel"},
 		{s: "", header: false},
-		{s: "COMING SOON", header: true},
+		{s: "PLAYBACK", header: true},
 		{k: "p", d: "Play / pause"},
+		{k: ",", d: "Previous track"},
+		{k: ".", d: "Next track"},
+		{k: "[ / ]", d: "Seek -5s / +5s"},
+		{k: "{ / }", d: "Seek -30s / +30s"},
+		{k: "- / =", d: "Volume down / up"},
+		{k: "0", d: "Reset volume"},
+		{s: "", header: false},
+		{s: "COMING SOON", header: true},
 		{k: "/", d: "Search"},
 		{k: "i", d: "Info panel"},
 		{k: "Space", d: "Add to queue"},
@@ -410,7 +512,7 @@ func buildHelpBox(m Model, th Theme, scrollOffset int, maxHeight int) string {
 			b.WriteString("\n" + th.HelpTitle().Render(item.s) + "\n")
 			continue
 		}
-		if item.s == "" {
+		if item.k == "" {
 			continue
 		}
 		b.WriteString(fmt.Sprintf("  %-18s %s", th.HelpKey().Render(item.k), th.HelpContent().Render(item.d)) + "\n")
@@ -456,8 +558,9 @@ type helpItem struct {
 func longestLine(lines []string) int {
 	max := 0
 	for _, l := range lines {
-		if len(l) > max {
-			max = len(l)
+		w := lipgloss.Width(l)
+		if w > max {
+			max = w
 		}
 	}
 	return max

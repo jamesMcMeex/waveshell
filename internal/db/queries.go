@@ -270,6 +270,9 @@ func sqlNullString(s string) interface{} {
 	return s
 }
 
+// sqlNullInt returns nil for 0 so SQLite stores NULL. This means 0 is
+// indistinguishable from "not set", but year 0 / track 0 / disc 0 are
+// extremely unlikely in practice.
 func sqlNullInt(n int) interface{} {
 	if n == 0 {
 		return nil

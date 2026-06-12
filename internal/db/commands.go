@@ -43,7 +43,7 @@ func QueryTagSliceCmd(d *sql.DB, mode model.BrowseMode) tea.Cmd {
 		case model.BrowseModeGenre:
 			q = `SELECT DISTINCT genre FROM tracks WHERE genre IS NOT NULL ORDER BY genre`
 		case model.BrowseModeYear:
-			q = `SELECT DISTINCT year FROM tracks WHERE year IS NOT NULL ORDER BY year`
+			q = `SELECT DISTINCT CAST(year AS TEXT) FROM tracks WHERE year IS NOT NULL ORDER BY year`
 		default:
 			return messages.DBErrorMsg{Op: "query tag slice", Err: fmt.Errorf("unsupported browse mode: %s", mode)}
 		}
@@ -133,7 +133,10 @@ func scanAlbums(rows *sql.Rows) []model.Album {
 func QueryTracksCmd(d *sql.DB, albumID int64) tea.Cmd {
 	return func() tea.Msg {
 		rows, err := d.Query(`
-			SELECT id, title, track_number, duration_ms, format, sample_rate, bit_depth, bitrate
+			SELECT id, file_path, title, artist,
+			       COALESCE(album,''), COALESCE(album_artist,''),
+			       codec, container,
+			       track_number, duration_ms, format, sample_rate, bit_depth, bitrate
 			FROM tracks WHERE album_id = ? ORDER BY disc_number, track_number`, albumID)
 		if err != nil {
 			return messages.DBErrorMsg{Op: "query tracks", Err: err}
@@ -144,7 +147,12 @@ func QueryTracksCmd(d *sql.DB, albumID int64) tea.Cmd {
 		for rows.Next() {
 			var t model.Track
 			var tn, bd sql.NullInt64
-			if err := rows.Scan(&t.ID, &t.Title, &tn, &t.DurationMs, &t.Format, &t.SampleRate, &bd, &t.Bitrate); err != nil {
+			if err := rows.Scan(
+				&t.ID, &t.FilePath, &t.Title, &t.Artist,
+				&t.Album, &t.AlbumArtist,
+				&t.Codec, &t.Container,
+				&tn, &t.DurationMs, &t.Format, &t.SampleRate, &bd, &t.Bitrate,
+			); err != nil {
 				slog.Warn("scan track row", "error", err)
 				continue
 			}

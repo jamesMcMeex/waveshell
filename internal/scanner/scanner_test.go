@@ -134,6 +134,7 @@ func TestScanWAV(t *testing.T) {
 	assert.Equal(t, model.AudioFormatWAV, tags.Format)
 	assert.Equal(t, model.CodecPCM, tags.Codec)
 	assert.Greater(t, tags.SampleRate, 0)
+	assert.Greater(t, tags.DurationMs, 0)
 }
 
 func TestScanOGG(t *testing.T) {

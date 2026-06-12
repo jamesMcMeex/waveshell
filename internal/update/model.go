@@ -6,8 +6,11 @@ package update
 import (
 	"database/sql"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/jamesMcMeex/waveshell/internal/config"
 	"github.com/jamesMcMeex/waveshell/internal/model"
+	"github.com/jamesMcMeex/waveshell/internal/mpv"
 )
 
 type Model struct {
@@ -20,6 +23,8 @@ type Model struct {
 	Config     *config.Config
 	ConfigPath string
 	DB         *sql.DB
+	MPV        mpv.Player
+	MPVErr     error
 }
 
 type LibraryState struct {
@@ -48,6 +53,8 @@ type PlayerState struct {
 	DisplayPositionSec float64
 	DurationSec        float64
 	Volume             int
+	Events             <-chan tea.Msg
+	MPVReady           bool
 }
 
 type QueueState struct {

@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -192,8 +193,8 @@ func Default() Config {
 			EditTags:         []string{"e"},
 			Dismiss:          []string{"esc"},
 			PlayPause:        []string{"p"},
-			NextTrack:        []string{"n"},
-			PrevTrack:        []string{"b"},
+			NextTrack:        []string{"."},
+			PrevTrack:        []string{","},
 			SeekForward5:     []string{"]"},
 			SeekBack5:        []string{"["},
 			SeekForward30:    []string{"}"},
@@ -540,13 +541,12 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-// filterLibraryPaths removes library paths that do not exist or are not directories.
-// The caller should log the dropped paths at warn level.
 func filterLibraryPaths(cfg *Config) {
 	var valid []string
 	for _, p := range cfg.Library.Paths {
 		info, err := os.Stat(p)
 		if err != nil || !info.IsDir() {
+			slog.Warn("config: library path does not exist, dropping", "path", p, "error", err)
 			continue
 		}
 		valid = append(valid, p)

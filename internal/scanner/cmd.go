@@ -151,6 +151,9 @@ func finishScan(state *scanState) tea.Msg {
 func needsScan(database *sql.DB, path string, modTime int64) (bool, error) {
 	t, err := db.TrackByPath(database, path)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return true, nil
+		}
 		return false, err
 	}
 	if t == nil {
