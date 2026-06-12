@@ -72,7 +72,7 @@ Panels that render on top of Layer 0. The base layer remains visible in the back
 | Search     | `/`     | `Esc`        |
 | Queue      | `q`     | `Esc`        |
 | Info Panel | `i`     | `Esc`        |
-| Help       | `h`   | `Esc` or `q` |
+| Help       | `?`   | `Esc`        |
 
 Overlays are full-width or near-full-width panels anchored to the top of the content area. They are visually distinct from the base layer via a border and title header using the `accent` colour.
 
@@ -281,7 +281,7 @@ waveshell uses `bubbles` components for all stateful leaf elements. Each is embe
 | Scan spinner      | `spinner.Model`     | `LibraryState.Spinner`      |
 | Help overlay body | `viewport.Model`    | `HelpState.Viewport`        |
 
-The three browser panes (Left, Middle, Tracks) are **custom list components**, not `bubbles/list`. Multi-select, the column header row, column-aware rendering, and sort indicators require a delegate interface that `bubbles/list` makes unnecessarily complex. Custom pane components implement their own `j/k` cursor, scroll offset, and selection state — all pure data in the Model.
+The three browser panes (Left, Middle, Tracks) are **custom list components**, not `bubbles/list`. Multi-select, the column header row, column-aware rendering, and sort indicators require a delegate interface that `bubbles/list` makes unnecessarily complex. Custom pane components implement their own cursor position, scroll offset, and selection state — all pure data in the Model. Cursor movement is driven by arrow key events only (see §2 Keybinding Rules).
 
 ---
 
@@ -292,26 +292,26 @@ A persistent one-line bar rendered between the content area and the Now Playing 
 ### Format
 
 ```
-[↵] play  [spc] queue  [i] info  [C] columns  [S] sort  [/] search  [?] help
+[↵] action  [~] queue  [i] info  [c] columns  [s] sort  [/] search  [?] help
 ```
 
 Keys are shown in brackets. Actions are lowercase. The bar is rendered in `muted` colour.
 
 ### Content rules by context
 
-| Context                                     | Hint bar content                                                                   |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Base — Left pane focused                    | `[↵] select  [b] browse mode  [c] theme  [tab] →  [/] search  [h] help`                       |
-| Base — Middle pane focused                  | `[↵] select  [tab] →  [a] add album  [/] search  [h] help`                         |
-| Base — Tracks pane, no selection            | `[↵] action  [spc] queue  [i] info  [v] select  [C] columns  [S] sort  [/] search` |
-| Base — Tracks pane, items selected          | `[e] edit tags  [spc] add to queue  [V] select all  [esc] clear`                   |
-| Base — Playlist left pane                   | `[↵] open  [n] new playlist  [B] browse mode  [tab] →`                             |
-| Overlay: Search                             | `[↵] action  [tab] next group  [ctrl+↵] results view  [esc] close`                 |
-| Overlay: Queue                              | `[J/K] reorder  [x] remove  [c] clear  [esc] close`                                |
-| Overlay: Info Panel (view mode)             | `[e] edit tags  [j/k] scroll  [esc] close`                                         |
-| Overlay: Info Panel (edit mode)             | `[↵] confirm  [tab] next field  [esc] cancel`                                      |
-| Dialog: Browse mode / Sort / Column manager | `[j/k] navigate  [↵] confirm  [esc] cancel`                                        |
-| Dialog: Write diff                          | `[↵] write  [esc] cancel`                                                          |
+| Context                                     | Hint bar content                                                                                  |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Base — Left pane focused                    | `[↵] action  [→] focus albums  [ctrl+b] browse  [ctrl+t] theme  [/] search  [?] help`            |
+| Base — Middle pane focused                  | `[↵] action  [→] focus tracks  [a] add to queue  [/] search  [?] help`                           |
+| Base — Tracks pane, no selection            | `[↵] action  [spc] play  [q] queue  [i] info  [v] select  [c] columns  [s] sort  [/] search`    |
+| Base — Tracks pane, items selected          | `[v] toggle  [shift+↑/↓] range  [ctrl+a] select all  [↵] batch action  [e] edit  [esc] clear`   |
+| Base — Playlist left pane                   | `[↵] action  [n] new playlist  [ctrl+b] browse mode  [→] focus albums`                           |
+| Overlay: Search                             | `[↵] action  [tab] next group  [ctrl+↵] results view  [esc] close`                               |
+| Overlay: Queue                              | `[↑/↓] navigate  [J/K] reorder  [x] remove  [c] clear  [esc] close`                             |
+| Overlay: Info Panel (view mode)             | `[e] edit  [↑/↓] scroll  [esc] close`                                                            |
+| Overlay: Info Panel (edit mode)             | `[↵] confirm  [tab] next field  [esc] cancel`                                                     |
+| Dialog: Browse mode / Sort / Column manager | `[↑/↓] navigate  [↵] confirm  [esc] cancel`                                                      |
+| Dialog: Write diff                          | `[↵] write  [esc] cancel`                                                                         |
 
 ---
 
@@ -350,21 +350,33 @@ The base layer. Three panes: Left / Middle / Tracks (labels determined by browse
 
 **Pane focus model:**
 
-Active pane border renders in `accent` colour. Inactive pane borders render in `muted`. Focus cycles rightward with `Tab` and leftward with `Shift+Tab`. `l` and `j` also shift focus right and left respectively.
+Active pane border renders in `accent` colour. Inactive pane borders render in `muted`. `→` moves focus one pane to the right; `←` moves focus one pane to the left. `Tab` / `Shift+Tab` are aliases. Focus does not wrap (pressing `→` from Tracks does nothing; pressing `←` from Left does nothing).
 
-**Filtering behaviour:**
+**Immediate filtering — cursor position IS the selection:**
 
-Selecting an item in the Left pane filters the Middle pane to show only items related to that selection. Selecting an item in the Middle pane filters the Tracks pane. Changing the Left selection immediately re-filters both right panes.
+In the Left and Middle panes, the cursor position determines the filter for the adjacent pane. There is no separate "select to confirm" step. As soon as the cursor moves to a new item, the adjacent pane updates immediately to reflect that item's contents:
 
-**Cursor behaviour on filter change:**
+- Cursor moves to an artist in the Left pane → Middle pane immediately loads that artist's albums. Cursor stays in the Left pane.
+- Cursor moves to an album in the Middle pane → Tracks pane immediately loads that album's tracks. Cursor stays in the Middle pane.
+- Pressing `→` or `Tab` moves focus to the next pane, where the user can then navigate within the already-loaded content.
 
-When a right pane's contents change due to a selection in the left pane, that pane's cursor resets to position 0 and scroll resets to the top.
+`Enter` in the Left or Middle pane opens an **Action Dialog** for the highlighted item (not a navigation action). See §9.5.
+
+**Cursor reset on content change:**
+
+When the adjacent pane's contents change due to cursor movement, that pane's cursor resets to position 0 and scroll resets to the top.
 
 **Letter-jump:**
 
-In any pane, pressing a letter key (range depends on context — `A`–`S` for pane movement letters, but all panes handle their own active range) moves the cursor to the first item whose display name begins with that letter. Works in all three panes across all browse modes.
+In any pane, pressing `Shift+Letter` moves the cursor to the first item whose display name begins with that letter. Works in all three panes across all browse modes.
 
-> **Rule:** `Shift+Letter` (`A`–`Z`) is always letter-jump. Lowercase letters are reserved for navigation commands (e.g. `g` = jump to bottom, `t` = jump to top). Never assign lowercase letters to letter-jump or uppercase letters to navigation — this would break the convention.
+> **Keybinding rules (hard, enforced here and in `docs/UI_DESIGN.md` §2):**
+> - `Shift+Letter` (`A`–`Z`) is **always** letter-jump. No exceptions.
+> - Lowercase letters (`a`–`z`) are for **functions and actions** only.
+> - `Ctrl+Letter` is for **configuration actions** that open a settings dialog (browse mode, theme, etc.).
+> - **Cursor movement uses arrow keys only** (`↑` `↓` `←` `→`, `Home`, `End`). No alpha character may be used for cursor movement, jump-to-top, or jump-to-bottom.
+> - `←` / `→` in the browser: move pane focus left/right (not in-pane character movement, since list panes are vertical).
+> - `Ctrl+C` quits the application.
 
 **Scroll:**
 
@@ -374,7 +386,7 @@ Each pane scrolls independently. `Ctrl+D` / `Ctrl+U` scroll by half a page.
 
 ### 9.2 Browse Mode Picker
 
-`B` opens the browse mode picker from anywhere in the base layer.
+`ctrl+b` opens the browse mode picker from anywhere in the base layer.
 
 ```
 ┌──────────────────────────────┐
@@ -401,6 +413,29 @@ Selecting a mode:
 5. Column configuration and sort state load from the saved config for that mode.
 6. The status bar reflects the new mode immediately.
    `Esc` closes without changing mode.
+
+---
+
+### 9.2.1 Theme Picker
+
+`ctrl+t` opens the theme picker from anywhere in the base layer. This is a Layer 2 dialog, identical in structure to the Browse Mode Picker.
+
+```
+┌─ THEME ────────────────────────────────────────────┐
+│  ────────────────────────────────────────────────  │
+│  ▶  default                            [active]    │
+│     catppuccin-mocha                               │
+│     catppuccin-latte                               │
+│     gruvbox                                        │
+│     nord                                           │
+│     tokyo-night                                    │
+│     solarized-dark                                 │
+└────────────────────────────────────────────────────┘
+```
+
+Navigating to a theme and pressing `Enter` applies it **immediately** (live preview — the UI re-renders with the new palette before the dialog closes). The selected theme is written to `config.toml` and persists across sessions. `Esc` closes without changing the theme.
+
+The active theme is marked `[active]`. The list of available themes is determined by the built-in theme definitions in the codebase and any user-defined themes in `config.toml`.
 
 ---
 
@@ -496,7 +531,7 @@ The search overlay is the primary discovery mechanism, operating in two modes: *
 └─────────────────────────────────────────────────────┘
 ```
 
-6. `j/k` moves the cursor through results. `Tab` jumps to the next group.
+6. `↑`/`↓` moves the cursor through results. `Tab` jumps to the next group.
 7. `Enter` on a result opens the Action Dialog for that item.
 8. `Esc` closes the overlay. `SearchState` is cleared. Base layer cursor is unchanged.
 
@@ -550,7 +585,7 @@ Pressing `Enter` on any actionable item opens a context menu rather than immedia
 
 #### Behaviour
 
-- `j/k` navigates options. `Enter` or the bracketed shortcut key executes that option directly.
+- `↑`/`↓` navigates options. `Enter` or the bracketed shortcut key executes that option directly.
 - Separator lines are not selectable — cursor skips them.
 - `Esc` closes without action.
 - The dialog is dismissed automatically after any action executes, except "View info" and "Edit tags", which transition to the Info Panel overlay.
@@ -632,7 +667,7 @@ Column widths are computed proportionally from the Tracks pane width and the num
 ```
 
 - The dialog header shows the current browse mode so it is always clear which mode's columns are being edited.
-- `j/k` navigates the list. `Space` toggles the highlighted column: visible → available or available → visible. The change takes effect immediately — the Tracks pane behind the dialog re-renders live.
+- `↑`/`↓` navigates the list. `Space` toggles the highlighted column: visible → available or available → visible. The change takes effect immediately — the Tracks pane behind the dialog re-renders live.
 - `J` / `K` reorder within the Visible section. A column in the Available section cannot be reordered until it is made visible.
 - `Esc` closes the dialog. Changes are already applied (live preview) and persisted to `config.toml`.
 - There is no Cancel. The dialog has no destructive actions; the user can always re-toggle a column they accidentally hid.
@@ -726,24 +761,49 @@ The sorted column header is highlighted in `accent` with a direction arrow, repl
 
 Multi-select is available in the Tracks pane across all browse modes and in Search Results view.
 
+#### Selection mode
+
+Selection is entered and managed via the `v` key. There is no separate "selection mode" flag — the presence of any selected item implicitly puts the Tracks pane into selection mode. The hint bar shifts to show batch-context bindings whenever any track is selected.
+
 #### Entering and managing a selection
 
-| Key     | Action                                                       |
-| ------- | ------------------------------------------------------------ |
-| `Space` | Toggle selection on the current track. Cursor does not move. |
-| `V`     | Select all currently visible tracks.                         |
-| `Esc`   | Clear all selections.                                        |
+| Key            | Action                                                                          |
+| -------------- | ------------------------------------------------------------------------------- |
+| `v`            | Toggle selection on the current track. Cursor does not move.                   |
+| `Shift+↓`      | Extend selection downward by one (range selection from anchor to cursor).      |
+| `Shift+↑`      | Extend selection upward by one (range selection from anchor to cursor).        |
+| `ctrl+a`       | Select all currently visible tracks.                                            |
+| `Esc`          | Clear all selections.                                                           |
 
-A selected track displays a `◆` prefix in `accent` colour. The count appears in the status bar: `3 tracks selected`. Standard navigation continues to work during selection.
+**Selection anchor:** The first item toggled with `v` becomes the anchor. `Shift+↑`/`Shift+↓` extends or contracts the range relative to the anchor. Pressing `v` on any item outside the range adds it as an individual toggle (non-contiguous).
 
-#### Batch operations
+A selected track displays a `◆` prefix in `accent` colour. The count appears in the status bar: `3 tracks selected`. `↑`/`↓` navigation continues to work normally during selection (cursor moves without affecting the selection).
 
-| Key           | Action                                          |
-| ------------- | ----------------------------------------------- |
-| `e`           | Open batch tag editor (see §9.10)               |
-| `Space`       | Add all selected tracks to the end of the queue |
-| `Shift+Space` | Insert all selected tracks as play-next         |
-| `Esc`         | Clear selection                                 |
+`Space` always plays the focused track regardless of selection state (it is not affected by selection mode). To queue multiple selected tracks, use `Enter` → Batch Action Dialog.
+
+#### Batch operations (available when ≥ 1 track selected)
+
+| Key     | Action                                          |
+| ------- | ----------------------------------------------- |
+| `Enter` | Open batch action dialog (see below)            |
+| `e`     | Open batch tag editor directly (see §9.10)      |
+| `Esc`   | Clear all selections                            |
+
+#### Batch action dialog
+
+`Enter` with an active selection opens a batch-specific action dialog:
+
+```
+┌─ BATCH ACTION ─── 3 tracks selected ─────────────────┐
+│  ──────────────────────────────────────────────────── │
+│  ▶  Play all now                                [↵]  │
+│     Play all next                               [n]  │
+│     Add all to queue                           [spc] │
+│  ──────────────────────────────────────────────────── │
+│     Edit tags                                   [e]  │
+│     Add to playlist…                            [p]  │  ← post-MVP
+└────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -803,7 +863,7 @@ Opened with `i` from the Tracks pane or via "View info" in the Action Dialog. Re
 │  ©ART  Aphex Twin                                 │
 │  …                                                │
 │                                                   │
-│  [e] edit tags  [j/k] scroll  [esc] close         │
+│  [e] edit tags  [↑/↓] scroll  [esc] close         │
 └───────────────────────────────────────────────────┘
 ```
 
@@ -857,7 +917,7 @@ When multi-select is active and `e` is pressed, the panel opens in batch edit mo
 
 ### 9.11 Queue View
 
-Opened with `q`. Renders as a full-height overlay using `bubbles/viewport`.
+Opened with `q` (or `~` as alias). Renders as a full-height overlay using `bubbles/viewport`.
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -870,11 +930,11 @@ Opened with `q`. Renders as a full-height overlay using `bubbles/viewport`.
 │  3  Autechre — Clipper                   05:12       │
 │  …                                                   │
 │                                                      │
-│  [J/K] reorder  [x] remove  [c] clear  [esc] close  │
+│  [↑/↓] navigate  [J/K] reorder  [x] remove  [c] clear  [esc] close  │
 └──────────────────────────────────────────────────────┘
 ```
 
-`J` / `K` moves the selected item down / up. `x` removes it. If the removed item is currently playing, playback advances to the next track. `c` clears all except the playing track (inline confirmation). `Esc` closes.
+`↑` / `↓` navigates the list. `J` / `K` moves the selected item down / up in queue order. `x` removes it. If the removed item is currently playing, playback advances to the next track. `c` clears all except the playing track (inline confirmation). `Esc` closes.
 
 ---
 
@@ -882,7 +942,7 @@ Opened with `q`. Renders as a full-height overlay using `bubbles/viewport`.
 
 Opened with `?`. A `bubbles/viewport` overlay listing all keybindings grouped by context: Navigation · Playback · Queue · Search · Browse Modes · Columns & Sorting · Metadata · Application.
 
-Content is generated from the same keybinding configuration used at runtime, so it reflects any customisation in `config.toml`. `Esc` or `q` closes.
+Content is generated from the same keybinding configuration used at runtime, so it reflects any customisation in `config.toml`. `Esc` closes. `q` while the help overlay is open is a no-op — only one overlay can be open at a time, and all overlays dismiss exclusively via `Esc`.
 
 ---
 
@@ -903,7 +963,7 @@ For errors that prevent the app from functioning (mpv not installed, no library 
 
 1. A Layer 2 dialog renders with the error and a suggested resolution.
 2. No key events reach the base layer.
-3. If unrecoverable, only `q` / `Ctrl+C` is offered.
+3. If unrecoverable, only `Ctrl+C` is offered.
 
 ### Write errors — in-panel
 
@@ -929,46 +989,59 @@ Destructive confirmations (clear queue, discard unsaved edits) use an inline pro
 
 All bindings are configurable in `config.toml`. The defaults below are the shipped values.
 
+**Keybinding rules (enforced across all contexts):**
+- `A`–`Z` (uppercase / `Shift+Letter`) = letter-jump only. Never used for commands.
+- `a`–`z` (lowercase) = functions and actions.
+- `Ctrl+Letter` = configuration actions that open a settings dialog.
+- Cursor movement = **arrow keys only** (`↑` `↓`, `Home`, `End`, `Ctrl+D`, `Ctrl+U`). No alpha character may stand in for a directional movement.
+- `q` = open the Queue overlay. All overlays and dialogs close exclusively with `Esc`. `Ctrl+C` = quit the application.
+
 ### Base layer — Library Browser
 
-| Key           | Action                                | Notes                                |
-| ------------- | ------------------------------------- | ------------------------------------ |
-| `k` / `↓`     | Cursor down                           |                                      |
-| `i` / `↑`     | Cursor up                             |                                      |
-| `Ctrl+D`      | Scroll down half page                 |                                      |
-| `Ctrl+U`      | Scroll up half page                   |                                      |
-| `t` / `Home`  | Jump to top                           |                                      |
-| `g` / `End`   | Jump to bottom                        |                                      |
-| `A`–`Z`       | Letter-jump                           | First item starting with that letter |
-| `Tab`         | Focus next pane (right)               | Wraps: Tracks → Left                 |
-| `Shift+Tab`   | Focus previous pane (left)            | Wraps: Left → Tracks                 |
-| `j`           | Focus previous pane                   |                                      |
-| `l`           | Focus next pane                       |                                      |
-| `Enter`       | Open Action Dialog                    |                                      |
-| `Space`       | Toggle track selection                | Tracks pane                          |
-| `Shift+Space` | Insert selected as play-next          | Tracks pane                          |
-| `a`           | Add album to queue                    | From any pane                        |
-| `V`           | Select all visible tracks             | Tracks pane                          |
-| `b`           | Open Browse Mode Picker               | Any pane                             |
-| `C`           | Open Column Manager                   | Tracks pane                          |
-| `S`           | Open Sort Picker                      | Tracks pane / Search Results         |
-| `i`           | Open Info Panel                       | Tracks pane                          |
-| `e`           | Edit tags (batch if selection active) | Tracks pane                          |
-| `/`           | Open Search overlay                   |                                      |
-| `q`           | Open Queue overlay                    |                                      |
-| `m`           | Cycle playback mode                   |                                      |
-| `c`           | Cycle theme                           |                                      |
-| `h`           | Open Help overlay                     |                                      |
-| `Esc`         | Clear selection / no-op               |                                      |
-| `Ctrl+C`      | Quit                                  |                                      |
+| Key         | Action                                | Notes                                                |
+| ----------- | ------------------------------------- | ---------------------------------------------------- |
+| `↓`         | Cursor down                           |                                                      |
+| `↑`         | Cursor up                             |                                                      |
+| `→`         | Focus next pane (right)               | No wrap; no-op at Tracks pane                        |
+| `←`         | Focus previous pane (left)            | No wrap; no-op at Left pane                          |
+| `Tab`       | Focus next pane (alias for `→`)       |                                                      |
+| `Shift+Tab` | Focus previous pane (alias for `←`)   |                                                      |
+| `Ctrl+D`    | Scroll down half page                 |                                                      |
+| `Ctrl+U`    | Scroll up half page                   |                                                      |
+| `Home`      | Jump to top                           |                                                      |
+| `End`       | Jump to bottom                        |                                                      |
+| `A`–`Z`     | Letter-jump                           | First item in active pane starting with that letter  |
+| `Enter`     | Open Action Dialog                    | Works in all three panes (artist / album / track)    |
+| `Space`     | Play focused track immediately        | Tracks pane only; no-op in Left/Middle panes         |
+| `v`         | Toggle track selection                | Tracks pane; enters/modifies selection               |
+| `Shift+↓`   | Extend selection range downward       | Tracks pane                                          |
+| `Shift+↑`   | Extend selection range upward         | Tracks pane                                          |
+| `ctrl+a`    | Select all visible tracks             | Tracks pane                                          |
+| `a`         | Add album to queue                    | Middle pane / Tracks pane context                    |
+| `ctrl+b`    | Open Browse Mode Picker               | Any pane                                             |
+| `ctrl+t`    | Open Theme Picker                     | Any pane                                             |
+| `c`         | Open Column Manager                   | Tracks pane                                          |
+| `s`         | Open Sort Picker                      | Tracks pane / Search Results                         |
+| `i`         | Open Info Panel                       | Tracks pane                                          |
+| `e`         | Edit tags (batch if selection active) | Tracks pane                                          |
+| `/`         | Open Search overlay                   |                                                      |
+| `q`         | Open Queue overlay                    |                                                      |
+| `~`         | Open Queue overlay (alias)            |                                                      |
+| `m`         | Cycle playback mode                   |                                                      |
+| `?`         | Open Help overlay                     |                                                      |
+| `1`         | Switch to Browser view                |                                                      |
+| `2`         | Switch to All Tracks view             |                                                      |
+| `3`         | Switch to Player view                 |                                                      |
+| `Esc`       | Clear selection / no-op               |                                                      |
+| `Ctrl+C`    | Quit                                  |                                                      |
 
-### Playback (always active)
+### Playback (always active, all layers)
 
 | Key       | Action                           |
 | --------- | -------------------------------- |
 | `p`       | Toggle play / pause              |
-| `n`       | Next track                       |
-| `b`       | Previous track                   |
+| `.`       | Next track                       |
+| `,`       | Previous track                   |
 | `[` / `]` | Seek -5s / +5s                   |
 | `{` / `}` | Seek -30s / +30s                 |
 | `-` / `=` | Volume down / up (5% increments) |
@@ -989,23 +1062,35 @@ All bindings are configurable in `config.toml`. The defaults below are the shipp
 | `J` | Move selected track down in playlist order |
 | `K` | Move selected track up in playlist order   |
 
+> `J` / `K` are uppercase and used inside playlist mode only. They do not conflict with letter-jump because playlist reorder is a modal action, not a base-layer letter-jump context.
+
 ### Column Manager dialog
 
-| Key       | Action                                  |
-| --------- | --------------------------------------- |
-| `j` / `↓` | Navigate list                           |
-| `k` / `↑` | Navigate list                           |
-| `Space`   | Toggle column visible / hidden          |
-| `J`       | Move column down (Visible section only) |
-| `K`       | Move column up (Visible section only)   |
-| `Esc`     | Save and close                          |
+| Key     | Action                                  |
+| ------- | --------------------------------------- |
+| `↓`     | Navigate list down                      |
+| `↑`     | Navigate list up                        |
+| `Space` | Toggle column visible / hidden          |
+| `J`     | Move column down (Visible section only) |
+| `K`     | Move column up (Visible section only)   |
+| `Esc`   | Save and close                          |
+
+### Theme Picker / Browse Mode Picker / Sort Picker / Action Dialog
+
+| Key          | Action                       |
+| ------------ | ---------------------------- |
+| `↓`          | Next option                  |
+| `↑`          | Previous option              |
+| `Enter`      | Execute / apply selected     |
+| Shortcut key | Execute that option directly |
+| `Esc`        | Close without action         |
 
 ### Search overlay
 
 | Key          | Action                                   |
 | ------------ | ---------------------------------------- |
-| `j` / `↓`    | Cursor down through results              |
-| `k` / `↑`    | Cursor up through results                |
+| `↓`          | Cursor down through results              |
+| `↑`          | Cursor up through results                |
 | `Tab`        | Jump to next result group                |
 | `Shift+Tab`  | Jump to previous result group            |
 | `Enter`      | Open Action Dialog for selected result   |
@@ -1014,24 +1099,24 @@ All bindings are configurable in `config.toml`. The defaults below are the shipp
 
 ### Queue overlay
 
-| Key       | Action                            |
-| --------- | --------------------------------- |
-| `j` / `↓` | Cursor down                       |
-| `k` / `↑` | Cursor up                         |
-| `J`       | Move selected item down           |
-| `K`       | Move selected item up             |
-| `x`       | Remove selected item              |
-| `c`       | Clear queue (inline confirmation) |
-| `Esc`     | Close overlay                     |
+| Key     | Action                            |
+| ------- | --------------------------------- |
+| `↓`     | Cursor down                       |
+| `↑`     | Cursor up                         |
+| `J`     | Move selected item down           |
+| `K`     | Move selected item up             |
+| `x`     | Remove selected item              |
+| `c`     | Clear queue (inline confirmation) |
+| `Esc`   | Close overlay                     |
 
 ### Info Panel — view mode
 
-| Key       | Action          |
-| --------- | --------------- |
-| `j` / `↓` | Scroll down     |
-| `k` / `↑` | Scroll up       |
-| `e`       | Enter edit mode |
-| `Esc`     | Close overlay   |
+| Key     | Action          |
+| ------- | --------------- |
+| `↓`     | Scroll down     |
+| `↑`     | Scroll up       |
+| `e`     | Enter edit mode |
+| `Esc`   | Close overlay   |
 
 ### Info Panel — edit mode
 
@@ -1042,12 +1127,10 @@ All bindings are configurable in `config.toml`. The defaults below are the shipp
 | `Enter`     | Advance to write confirmation |
 | `Esc`       | Prompt to discard changes     |
 
-### Browse Mode Picker / Sort Picker / Action Dialog
+### Help overlay
 
-| Key          | Action                       |
-| ------------ | ---------------------------- |
-| `j` / `↓`    | Next option                  |
-| `k` / `↑`    | Previous option              |
-| `Enter`      | Execute selected option      |
-| Shortcut key | Execute that option directly |
-| `Esc`        | Close without action         |
+| Key   | Action      |
+| ----- | ----------- |
+| `↓`   | Scroll down |
+| `↑`   | Scroll up   |
+| `Esc` | Close       |
